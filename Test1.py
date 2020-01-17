@@ -1,4 +1,5 @@
 import re
+from tkinter import messagebox as ms
 import pymongo
 from tkinter import *
 import os
@@ -31,6 +32,42 @@ def clearAll():
     acctype.set('')
     password.set('')
 
+def password_check(passwd):
+    SpecialSym = ['$', '@', '#', '%']
+    val = True
+
+    if len(passwd) < 8:
+        #print('length should be at least 6')
+        ms.showerror("Error","length should be at least 6")
+        val = False
+
+    if len(passwd) > 20:
+        #print('length should be not be greater than 20')
+        ms.showerror("Error","length should be not be greater than 20")
+        val = False
+
+    if not any(char.isdigit() for char in passwd):
+        #print('Password should have at least one numeral')
+        ms.showerror("Error","Password should have at least one numeral")
+        val = False
+
+    if not any(char.isupper() for char in passwd):
+        #print('Password should have at least one uppercase letter')
+        ms.showerror("Error","Password should have at least one uppercase letter")
+        val = False
+
+    if not any(char.islower() for char in passwd):
+        #print('Password should have at least one lowercase letter')
+        ms.showerror("Error","Password should have at least one lowercase letter")
+        val = False
+
+    if not any(char in SpecialSym for char in passwd):
+        #print('Password should have at least one of the symbols $@#')
+        ms.showerror("Error","Password should have at least one of the symbols $@#")
+        val = False
+    if val:
+        return val
+
 def auto():
     global c_id
     ans = cust.find().sort("_id",-1).limit(1)
@@ -44,40 +81,64 @@ def auto():
    # cust_accType = acctype.get()
     cust_pass = password.get()
     count = 0
-    regex = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
-    if (re.search(regex, cust_email)):
-        print("Valid Email")
-        for i in cust.find():
-            #print("here for loop")
-            if i["Email Id"] == cust_email:
-                print("Use different Id")
-                count = count + 1
-    else:
-        print("Invalid Email")
 
     if count == 0:
-        #print("hiiiiiiii")
-        data = {"_id": c_id, "Name": cust_name, "PhoNo": cust_phNo, "Email Id": cust_email, "Password": cust_pass, "Balance": 0}
-        x = cust.insert_one(data)
-        clearAll()
-
-
+        if cust_name != '' and cust_phNo != '' and cust_pass != '':
+            if len(cust_phNo) == 10:
+                if password_check(cust_pass):
+                    data = {"_id": c_id, "Name": cust_name, "PhoNo": cust_phNo, "Email Id": cust_email, "Password": cust_pass, "Balance": 0, "is_delete": False}
+                    x = cust.insert_one(data)
+                    #print("Data Inserted!")
+                    ms.showinfo("Info","Data Inserted!")
+                    clearAll()
+                else:
+                    #print("Invalid Password")
+                    ms.showerror("Error","Invalid Password")
+            else:
+                print(cust_phNo)
+                #print("Phone Number should be of 10 Digits!")
+                ms.showerror("Error","Phone Number should be of 10 Digits!")
+        else:
+            #print("Empty Fields Not allowed!!")
+            ms.showerror("Error","Empty Fields Not allowed!!")
+    regex = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
+    if (re.search(regex, cust_email)):
+        # print("Valid Email")
+        for i in cust.find():
+            # print("here for loop")
+            if i["Email Id"] == cust_email:
+                # print("Use different Id")
+                ms.showerror("Error", "Use different Id")
+                count = count + 1
+    else:
+        # print("Invalid Email")
+        ms.showerror("Error", "Invalid Email")
 
 
 def delete_cust():
     cust_name = name.get()
     cust_pass = password.get()
     countDel = 1
+    is_delete = False
 
     for i in cust.find():
         if i["Name"] == cust_name and i["Password"] == cust_pass:
-            cust.delete_one({"Name": cust_name, "Password": cust_pass})
+            #cust.delete_one({"Name": cust_name, "Password": cust_pass})
+            oldValue = ({"Name": cust_name, "Password":cust_pass,"is_delete": False})
+            newValue = ({"$set": {"is_delete": True}})
+            cust.update_one(oldValue, newValue)
+            print("Data Deleted!")
+            #ms.showinfo("INFO","Data Deleted!")
             clearAll()
+            countDel = 1
+            break
         else:
             countDel = 0
 
     if countDel == 0:
         print("Invalid Login!")
+        print(countDel)
+        #ms.showerror("Error","Invalid Login In Delete!")
 
 
 
@@ -103,7 +164,8 @@ def okUpdate():
     cust_name = name.get()
     cust_pass = password.get()
     if cust_name == "" or cust_pass == "":
-        print("error")
+        #print("error")
+        ms.showerror("Error","error")
         root.destroy()
 
     for i in cust.find({"Name": cust_name, "Password": cust_pass}, {"_id": 0}):
@@ -116,8 +178,11 @@ def okUpdate():
             oldValue = ({"Name": cust_name, "Password": cust_pass})
             newValue = ({"$set": {"Name": upName, "PhoNo": upPhno, "Password": upPassword}})
             cust.update_one(oldValue, newValue)
+            #print("Data Updated!")
+            ms.showinfo("INFO","Data Updated!")
         else:
-            print("Error!")
+            #print("Error!")
+            ms.showerror("Error","Error!")
     clearAll()
 
 def showBal():
@@ -129,10 +194,8 @@ def showBal():
     clearAll()
 
 def showClients():
-    for i in cust.find():
+    for i in cust.find({"is_delete":False}):
         print(i)
-
-
 
 label_1 = Label(root, text="Name", width=20,bg="#c4d7d7",fg="#003399",font="Helvetica 13 bold").place(x=40, y=145)
 entry_1 = Entry(root, textvar=name).place(x=280, y=145)
